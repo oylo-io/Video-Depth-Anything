@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-depth-anything"
+version = "0.1.0"
+description = "Video Depth Anything - Consistent Depth Estimation for Videos"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+dependencies = [
+    "torch",
+    "torchvision",
+    "einops",
+    "huggingface_hub",
+    "numpy",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+full = [
+    "opencv-python",
+    "matplotlib",
+    "pillow",
+    "imageio",
+    "imageio-ffmpeg",
+]
+
+[tool.setuptools.packages.find]
+include = ["video_depth_anything*"]
