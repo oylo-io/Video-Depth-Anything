@@ -10,8 +10,6 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache-2.0"}
 dependencies = [
-    "torch",
-    "torchvision",
     "einops",
     "huggingface_hub",
     "numpy",
@@ -19,7 +17,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+torch = [
+    "torch",
+    "torchvision",
+]
 full = [
+    "torch",
+    "torchvision",
     "opencv-python",
     "matplotlib",
     "pillow",
