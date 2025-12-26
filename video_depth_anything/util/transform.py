@@ -1,9 +1,10 @@
 import numpy as np
-import cv2
 
 
 class Resize(object):
     """Resize sample to given size (width, height).
+
+    Note: Requires cv2 to be installed. Only used by infer_video_depth().
     """
 
     def __init__(
@@ -14,7 +15,7 @@ class Resize(object):
         keep_aspect_ratio=False,
         ensure_multiple_of=1,
         resize_method="lower_bound",
-        image_interpolation_method=cv2.INTER_AREA,
+        image_interpolation_method=None,
     ):
         """Init.
 
@@ -107,18 +108,22 @@ class Resize(object):
         return (new_width, new_height)
 
     def __call__(self, sample):
+        import cv2  # Lazy import - only needed when Resize is called
+
         width, height = self.get_size(sample["image"].shape[1], sample["image"].shape[0])
-        
+
+        interp = self.__image_interpolation_method or cv2.INTER_AREA
+
         # resize sample
-        sample["image"] = cv2.resize(sample["image"], (width, height), interpolation=self.__image_interpolation_method)
+        sample["image"] = cv2.resize(sample["image"], (width, height), interpolation=interp)
 
         if self.__resize_target:
             if "depth" in sample:
                 sample["depth"] = cv2.resize(sample["depth"], (width, height), interpolation=cv2.INTER_NEAREST)
-                
+
             if "mask" in sample:
                 sample["mask"] = cv2.resize(sample["mask"].astype(np.float32), (width, height), interpolation=cv2.INTER_NEAREST)
-        
+
         return sample
 
 

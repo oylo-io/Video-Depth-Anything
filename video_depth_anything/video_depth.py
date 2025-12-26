@@ -15,7 +15,6 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torchvision.transforms import Compose
-import cv2
 from tqdm import tqdm
 import numpy as np
 import gc
@@ -68,6 +67,8 @@ class VideoDepthAnything(nn.Module):
         return depth.squeeze(1).unflatten(0, (B, T)) # return shape [B, T, H, W]
 
     def infer_video_depth(self, frames, target_fps, input_size=518, device='cuda', fp32=False):
+        import cv2  # Only needed for infer_video_depth, not forward()
+
         frame_height, frame_width = frames[0].shape[:2]
         ratio = max(frame_height, frame_width) / min(frame_height, frame_width)
         if ratio > 1.78:  # we recommend to process video with ratio smaller than 16:9 due to memory limitation
