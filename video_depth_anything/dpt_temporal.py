@@ -102,11 +102,7 @@ class DPTHeadTemporal(DPTHead):
             out = F.interpolate(
                 out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True
             )
-            ori_type = out.dtype
-            with torch.autocast(device_type="cuda", enabled=False):
-                out = self.scratch.output_conv2(out.float())
-
-            output = out.to(ori_type) 
+            output = self.scratch.output_conv2(out)
         else:
             ret = []
             for i in range(0, batch_size, micro_batch_size):
@@ -116,10 +112,8 @@ class DPTHeadTemporal(DPTHead):
                 out = F.interpolate(
                     out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True
                 )
-                ori_type = out.dtype
-                with torch.autocast(device_type="cuda", enabled=False):
-                    out = self.scratch.output_conv2(out.float())
-                ret.append(out.to(ori_type))
+                out = self.scratch.output_conv2(out)
+                ret.append(out)
             output = torch.cat(ret, dim=0)
         
         return output, h0 + h1 + h2 + h3
