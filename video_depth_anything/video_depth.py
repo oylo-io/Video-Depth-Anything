@@ -57,15 +57,66 @@ class VideoDepthAnything(nn.Module):
         self.head = DPTHeadTemporal(self.pretrained.embed_dim, features, use_bn, out_channels=out_channels, use_clstoken=use_clstoken, num_frames=num_frames, pe=pe)
         self.metric = metric
 
+        # Eventful attention (optional, for streaming)
+        self._eventful_blocks = None
+
+    def enable_eventful(self, recompute_fraction=0.3):
+        """Enable eventful attention for streaming (skip unchanged tokens)."""
+        from .eventful_attention import wrap_dino_blocks
+        self._eventful_blocks = wrap_dino_blocks(self.pretrained, recompute_fraction)
+
+    def disable_eventful(self):
+        """Disable eventful attention, return to full computation."""
+        if self._eventful_blocks:
+            for blk in self._eventful_blocks:
+                blk.reset()
+        self._eventful_blocks = None
+
+    def reset_eventful(self):
+        """Reset eventful caches (call on scene change)."""
+        if self._eventful_blocks:
+            for blk in self._eventful_blocks:
+                blk.reset()
+
     def forward(self, x):
         B, T, C, H, W = x.shape
         patch_h, patch_w = H // 14, W // 14
-        features = self.pretrained.get_intermediate_layers(x.flatten(0,1), self.intermediate_layer_idx[self.encoder], return_class_token=True)
+
+        if self._eventful_blocks is not None:
+            features = self._forward_eventful(x.flatten(0, 1))
+        else:
+            features = self.pretrained.get_intermediate_layers(x.flatten(0,1), self.intermediate_layer_idx[self.encoder], return_class_token=True)
 
         # Cache last layer's patch tokens for downstream use (e.g., segmentation head)
         self.last_dino_features = features[-1][0]  # [B*T, num_patches, embed_dim]
 
         depth = self.head(features, patch_h, patch_w, T)[0]
+
+    def _forward_eventful(self, x):
+        """Run DINOv2 with eventful blocks, return same format as get_intermediate_layers."""
+        dino = self.pretrained
+        layer_indices = self.intermediate_layer_idx[self.encoder]
+
+        # Prepare tokens (patch embed + CLS + pos encoding + registers)
+        x = dino.prepare_tokens_with_masks(x)
+
+        # Run through eventful blocks, collect intermediate outputs
+        outputs = []
+        for i, blk in enumerate(self._eventful_blocks):
+            x = blk(x)
+            if i in layer_indices:
+                outputs.append(x.clone())
+
+        # Normalize and strip CLS + register tokens (same as get_intermediate_layers)
+        n_prefix = 1 + dino.num_register_tokens
+        result = []
+        for out in outputs:
+            normed = dino.norm(out)
+            cls_token = normed[:, 0]
+            patch_tokens = normed[:, n_prefix:]
+            result.append((patch_tokens, cls_token))
+
+        return tuple(result)
         depth = F.interpolate(depth, size=(H, W), mode="bilinear", align_corners=True)
         depth = F.relu(depth)
         return depth.squeeze(1).unflatten(0, (B, T)) # return shape [B, T, H, W]
