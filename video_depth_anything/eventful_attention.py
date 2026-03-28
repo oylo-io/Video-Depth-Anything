@@ -87,6 +87,14 @@ class EventfulDINOv2Block(nn.Module):
         # Detect changed tokens
         delta = x - self.prev_x
         token_norms = vector_norm(delta[0], dim=-1)  # [N]
+
+        # If most tokens changed significantly, fall back to full recompute
+        # (scene change / large motion). Use median as a robust indicator.
+        median_change = token_norms.median().item()
+        baseline_norm = vector_norm(x[0], dim=-1).median().item()
+        if baseline_norm > 0 and median_change / baseline_norm > 0.3:
+            return self._forward_full(x)
+
         k = max(1, int(self.recompute_fraction * N))
         _, changed_idx = token_norms.topk(k, sorted=False)
 
