@@ -60,10 +60,10 @@ class VideoDepthAnything(nn.Module):
         # Eventful attention (optional, for streaming)
         self._eventful_blocks = None
 
-    def enable_eventful(self, recompute_fraction=0.3):
+    def enable_eventful(self, change_threshold=0.1):
         """Enable eventful attention for streaming (skip unchanged tokens)."""
         from .eventful_attention import wrap_dino_blocks
-        self._eventful_blocks = wrap_dino_blocks(self.pretrained, recompute_fraction)
+        self._eventful_blocks = wrap_dino_blocks(self.pretrained, change_threshold)
 
     def disable_eventful(self):
         """Disable eventful attention, return to full computation."""
