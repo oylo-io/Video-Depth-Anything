@@ -91,6 +91,9 @@ class VideoDepthAnything(nn.Module):
         self.last_dino_features = features[-1][0]  # [B*T, num_patches, embed_dim]
 
         depth = self.head(features, patch_h, patch_w, T)[0]
+        depth = F.interpolate(depth, size=(H, W), mode="bilinear", align_corners=True)
+        depth = F.relu(depth)
+        return depth.squeeze(1).unflatten(0, (B, T)) # return shape [B, T, H, W]
 
     def _forward_eventful(self, x):
         """Run DINOv2 with eventful blocks, return same format as get_intermediate_layers."""
@@ -117,9 +120,6 @@ class VideoDepthAnything(nn.Module):
             result.append((patch_tokens, cls_token))
 
         return tuple(result)
-        depth = F.interpolate(depth, size=(H, W), mode="bilinear", align_corners=True)
-        depth = F.relu(depth)
-        return depth.squeeze(1).unflatten(0, (B, T)) # return shape [B, T, H, W]
 
     def infer_video_depth(self, frames, target_fps, input_size=518, device='cuda', fp32=False):
         import cv2  # Only needed for infer_video_depth, not forward()
