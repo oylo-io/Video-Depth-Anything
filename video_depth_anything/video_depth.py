@@ -61,6 +61,10 @@ class VideoDepthAnything(nn.Module):
         B, T, C, H, W = x.shape
         patch_h, patch_w = H // 14, W // 14
         features = self.pretrained.get_intermediate_layers(x.flatten(0,1), self.intermediate_layer_idx[self.encoder], return_class_token=True)
+
+        # Cache last layer's patch tokens for downstream use (e.g., segmentation head)
+        self.last_dino_features = features[-1][0]  # [B*T, num_patches, embed_dim]
+
         depth = self.head(features, patch_h, patch_w, T)[0]
         depth = F.interpolate(depth, size=(H, W), mode="bilinear", align_corners=True)
         depth = F.relu(depth)

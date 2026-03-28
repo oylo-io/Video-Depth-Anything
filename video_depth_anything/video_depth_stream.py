@@ -64,6 +64,8 @@ class VideoDepthAnything(nn.Module):
     
     def forward_features(self, x):
         features = self.pretrained.get_intermediate_layers(x.flatten(0,1), self.intermediate_layer_idx[self.encoder], return_class_token=True)
+        # Cache last layer's patch tokens for downstream use (e.g., segmentation head)
+        self.last_dino_features = features[-1][0]  # [B*T, num_patches, embed_dim]
         return features
 
     def forward_depth(self, features, x_shape, cached_hidden_state_list=None):
